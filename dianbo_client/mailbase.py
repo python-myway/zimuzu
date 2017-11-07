@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 
-
 import re
 import blinker
 import smtplib
-import sys
 import time
 import unicodedata
 
@@ -16,11 +14,6 @@ from email.mime.text import MIMEText
 from email.header import Header
 from email.utils import formatdate, formataddr, make_msgid, parseaddr
 from contextlib import contextmanager
-
-
-PY3 = sys.version_info[0] == 3
-
-PY34 = PY3 and sys.version_info[1] >= 4
 
 string_types = str,
 text_type = str
@@ -41,7 +34,8 @@ class MailUnicodeDecodeError(UnicodeDecodeError):
         return '%s. You passed in %r (%s)' % (original, self.obj, type(self.obj))
 
 
-def force_text(s, encoding='utf-8', errors='strict'):
+def force_text(s, encoding='utf-8', strings_only=False, errors='strict'):
+
     if isinstance(s, text_type):
         return s
 
@@ -54,7 +48,10 @@ def force_text(s, encoding='utf-8', errors='strict'):
         else:
             s = s.decode(encoding, errors)
     except UnicodeDecodeError as e:
-        raise MailUnicodeDecodeError(s, *e.args)
+        if not isinstance(s, Exception):
+            raise MailUnicodeDecodeError(s, *e.args)
+        else:
+            s = ' '.join([force_text(arg, encoding, strings_only, errors) for arg in s])
     return s
 
 
@@ -102,7 +99,7 @@ def _has_newline(line):
     return False
 
 
-class Connection(object):
+class Connection:
     """Handles connection to host."""
 
     def __init__(self, mail):
@@ -138,16 +135,10 @@ class Connection(object):
         return host
 
     def send(self, message, envelope_from=None):
-        """Verifies and sends message.
 
-        :param message: Message instance.
-        :param envelope_from: Email address to be used in MAIL FROM command.
-        """
-        assert message.send_to, "No recipients have been added"
+        assert message.send_to, '无收信人'
 
-        assert message.sender, (
-                "The message does not specify a sender and a default sender "
-                "has not been configured")
+        assert message.sender, '无发件人'
 
         if message.has_bad_headers():
             raise BadHeaderError
@@ -158,7 +149,7 @@ class Connection(object):
         if self.host:
             self.host.sendmail(sanitize_address(envelope_from or message.sender),
                                list(sanitize_addresses(message.send_to)),
-                               message.as_bytes() if PY3 else message.as_string(),
+                               message.as_bytes(),
                                message.mail_options,
                                message.rcpt_options)
 
@@ -181,6 +172,16 @@ class BadHeaderError(Exception):
 
 
 class Attachment(object):
+    """Encapsulates file attachment information.
+
+    :versionadded: 0.3.5
+
+    :param filename: filename of attachment
+    :param content_type: file mimetype
+    :param data: the raw file data
+    :param disposition: content-disposition (if any)
+    """
+
     def __init__(self, filename=None, content_type=None, data=None,
                  disposition=None, headers=None):
         self.filename = filename
@@ -191,6 +192,24 @@ class Attachment(object):
 
 
 class Message(object):
+    """Encapsulates an email message.
+
+    :param subject: email subject header
+    :param recipients: list of email addresses
+    :param body: plain text message
+    :param html: HTML message
+    :param sender: email sender address
+    :param cc: CC list
+    :param bcc: BCC list
+    :param attachments: list of Attachment instances
+    :param reply_to: reply-to address
+    :param date: send date
+    :param charset: message character set
+    :param extra_headers: A dictionary of additional headers for the message
+    :param mail_options: A list of ESMTP options to be used in MAIL FROM command
+    :param rcpt_options:  A list of ESMTP options to be used in RCPT commands
+    """
+
     def __init__(self, subject='',
                  recipients=None,
                  body=None,
@@ -205,8 +224,6 @@ class Message(object):
                  extra_headers=None,
                  mail_options=None,
                  rcpt_options=None):
-
-        sender = sender
 
         if isinstance(sender, tuple):
             sender = "%s <%s>" % sender
@@ -240,7 +257,7 @@ class Message(object):
 
     def _message(self):
         """Creates the email"""
-        ascii_attachments = ''
+        ascii_attachments = False
         encoding = self.charset or 'utf-8'
 
         attachments = self.attachments or []
@@ -296,8 +313,6 @@ class Message(object):
             try:
                 filename and filename.encode('ascii')
             except UnicodeEncodeError:
-                if not PY3:
-                    filename = filename.encode('utf8')
                 filename = ('UTF8', '', filename)
 
             f.add_header('Content-Disposition',
@@ -317,10 +332,7 @@ class Message(object):
         return self._message().as_string()
 
     def as_bytes(self):
-        if PY34:
-            return self._message().as_bytes()
-        else: # fallback for old Python (3) versions
-            return self._message().as_string().encode(self.charset or 'utf-8')
+        return self._message().as_string().encode(self.charset or 'utf-8')
 
     def __str__(self):
         return self.as_string()
@@ -385,129 +397,6 @@ class Message(object):
         """
         self.attachments.append(
             Attachment(filename, content_type, data, disposition, headers))
-
-
-class _MailMixin(object):
-
-    @contextmanager
-    def record_messages(self):
-        """Records all messages. Use in unit tests for example::
-
-            with mail.record_messages() as outbox:
-                response = app.test_client.get("/email-sending-view/")
-                assert len(outbox) == 1
-                assert outbox[0].subject == "testing"
-
-        You must have blinker installed in order to use this feature.
-        :versionadded: 0.4
-        """
-
-        if not email_dispatched:
-            raise RuntimeError("blinker must be installed")
-
-        outbox = []
-
-        def _record(message, app):
-            outbox.append(message)
-
-        email_dispatched.connect(_record)
-
-        try:
-            yield outbox
-        finally:
-            email_dispatched.disconnect(_record)
-
-    def send(self, message):
-        """Sends a single message instance. If TESTING is True the message will
-        not actually be sent.
-
-        :param message: a Message instance.
-        """
-
-        with self.connect() as connection:
-            message.send(connection)
-
-    def send_message(self, *args, **kwargs):
-        """Shortcut for send(msg).
-
-        Takes same arguments as Message constructor.
-
-        :versionadded: 0.3.5
-        """
-
-        self.send(Message(*args, **kwargs))
-
-    def connect(self):
-        """Opens a connection to the mail host."""
-        app = getattr(self, "app", None) or current_app
-        try:
-            return Connection(app.extensions['mail'])
-        except KeyError:
-            raise RuntimeError("The curent application was not configured with Flask-Mail")
-
-
-class _Mail(_MailMixin):
-    def __init__(self, server, username, password, port, use_tls, use_ssl,
-                 default_sender, debug, max_emails, suppress,
-                 ascii_attachments=False):
-        self.server = server
-        self.username = username
-        self.password = password
-        self.port = port
-        self.use_tls = use_tls
-        self.use_ssl = use_ssl
-        self.default_sender = default_sender
-        self.debug = debug
-        self.max_emails = max_emails
-        self.suppress = suppress
-        self.ascii_attachments = ascii_attachments
-
-
-class Mail(_MailMixin):
-    """Manages email messaging
-
-    :param app: Flask instance
-    """
-
-    def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.state = self.init_app(app)
-        else:
-            self.state = None
-
-    def init_mail(self, config, debug=False, testing=False):
-        return _Mail(
-            config.get('MAIL_SERVER', '127.0.0.1'),
-            config.get('MAIL_USERNAME'),
-            config.get('MAIL_PASSWORD'),
-            config.get('MAIL_PORT', 25),
-            config.get('MAIL_USE_TLS', False),
-            config.get('MAIL_USE_SSL', False),
-            config.get('MAIL_DEFAULT_SENDER'),
-            int(config.get('MAIL_DEBUG', debug)),
-            config.get('MAIL_MAX_EMAILS'),
-            config.get('MAIL_SUPPRESS_SEND', testing),
-            config.get('MAIL_ASCII_ATTACHMENTS', False)
-        )
-
-    def init_app(self, app):
-        """Initializes your mail settings from the application settings.
-
-        You can use this if you want to set up your Mail instance
-        at configuration time.
-
-        :param app: Flask application instance
-        """
-        state = self.init_mail(app.config, app.debug, app.testing)
-
-        # register extension with app
-        app.extensions = getattr(app, 'extensions', {})
-        app.extensions['mail'] = state
-        return state
-
-    def __getattr__(self, name):
-        return getattr(self.state, name, None)
 
 
 signals = blinker.Namespace()

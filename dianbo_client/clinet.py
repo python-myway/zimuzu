@@ -1,6 +1,10 @@
+from contextlib import contextmanager
+
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
+
+from dianbo_client.mailbase import email_dispatched, Message, Connection
 
 
 async def get_source():
@@ -127,7 +131,57 @@ class DianboClient:
 
 
 class EmailClient:
-    pass
+    def __init__(self, server, username, password, port, use_tls=False, use_ssl=False,
+                 default_sender=None, debug=False, max_emails=None, suppress=False,
+                 ascii_attachments=False):
+        self.server = server
+        self.username = username
+        self.password = password
+        self.port = port
+        self.use_tls = use_tls
+        self.use_ssl = use_ssl
+        self.default_sender = default_sender
+        self.debug = debug
+        self.max_emails = max_emails
+        self.suppress = suppress
+        self.ascii_attachments = ascii_attachments
+
+    @contextmanager
+    def record_messages(self):
+        if not email_dispatched:
+            raise RuntimeError("blinker must be installed")
+        outbox = []
+
+        def _record(message):
+            outbox.append(message)
+        email_dispatched.connect(_record)
+
+        try:
+            yield outbox
+        finally:
+            email_dispatched.disconnect(_record)
+
+    def send(self, message):
+        with self.connect() as connection:
+            message.send(connection)
+
+    def send_message(self, sender, recipients, subject='', body=None, html=None, ):
+        self.send(Message(sender=sender, recipients=recipients, subject=subject, body=body, html=html))
+
+    def connect(self):
+        try:
+            return Connection(self)
+        except KeyError:
+            raise RuntimeError('邮件客户端未配置好')
+
+    def async_email(self):
+        pass
+
+    def with_attachment_email(self):
+        pass
+
+    def with_html_email(self):
+        pass
 
 
 class BaiduyunClient:
@@ -135,4 +189,7 @@ class BaiduyunClient:
 
 
 if __name__ == '__main__':
-    pass
+    mail = EmailClient('smtp.163.com', 'chengganqin@163.com', 'hunting##161201', 25)
+    msg = Message(subject='测试', recipients=[('test', '1612134263@qq.com')], sender=('test', 'chengganqin@163.com'))
+    msg.body = 'http://test.com\nhttp://test.com\n'
+    mail.send(msg)

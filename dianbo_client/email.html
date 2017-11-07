@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        table{
+            table-layout:fixed;
+            empty-cells:show;
+            border-collapse: collapse;
+            margin:0 auto;
+        }
+        .table{
+            border:1px solid #cad9ea;
+            color:#666;
+        }
+        .table th {
+            background-repeat:repeat-x;
+            height:30px;
+        }
+        .table td,.table th{
+            border:1px solid #cad9ea;
+            padding:0 1em 0;
+        }
+        .table tr.alter{
+            background-color:#f5fafe;
+        }
+    </style>
+</head>
+<body>
+<h3>日期：</h3>
+<table class="table">
+   <thead>
+   <tr>
+       <th >名称</th>
+       <th >地址</th>
+   </tr>
+   </thead>
+   {% for d in data %}
+   <tbody>
+   <tr class="alter">
+     <td >{{ d.name }}</td>
+     <td >{{ d.url }}</td>
+   </tr>
+   </tbody>
+   {% endfor %}
+  </table><br>
+</body>
+</html>
