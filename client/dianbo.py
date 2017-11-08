@@ -1,10 +1,11 @@
 from contextlib import contextmanager
+from collections import namedtuple
 
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
 
-from dianbo_client.mailbase import email_dispatched, Message, Connection
+from client.mailbase import email_dispatched, Message, Connection
 
 
 async def get_source():
@@ -18,21 +19,17 @@ class DianboAPIError(Exception):
     def __init__(self, resp):
         self.status = resp.status_code
         self.reason = resp.reason
-        self.msg = resp.parsed
 
     def __str__(self):
-        return '***{} ({})*** {}'.format(self.status, self.reason, self.msg)
+        return '***{} ({})'.format(self.status, self.reason)
 
 
 def check_execption(func):
     def _check(*arg, **kwargs):
         resp = func(*arg, **kwargs)
-        if resp.status >= 400:
+        if resp.status_code >= 400:
             raise DianboAPIError(resp)
-        body = resp.body
-        if body:
-            return resp.parsed
-        return body
+        return resp.text
     return _check
 
 
@@ -45,39 +42,47 @@ class DianboClient:
         self.info_url = 'http://dbfansub.com/category/{}/page/{}'
 
     def __repr__(self):
-        pass
+        return '<Dianbo Client at {}>'.format(id(self))
 
     def __call__(self, *args, **kwargs):
         pass
 
     def __enter__(self):
-        pass
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+        if self.session:
+            self.session.close()
 
     @check_execption
+    def _get_html(self, part=None, page=None, url=None):
+        if part and not page:
+            return self.session.get(self.page_url.format(part))
+        if part and page:
+            return self.session.get(self.info_url.format(part, page))
+        if url:
+            return self.session.get(url)
+
     def _get_page(self, part):
-        html = self.session.get(self.page_url.format(part)).text
+        html = self._get_html(part=part)
         base_soup = BeautifulSoup(html, self.parser)
         raw_page = base_soup.find_all('a', attrs={'class': 'page-numbers'})[-2]
         pages = BeautifulSoup(str(raw_page), self.parser).a.string
         return int(pages)
 
-    @check_execption
     def _get_info(self, part, page):
-        html = self.session.get(self.info_url.format(part, page)).text
+        Info = namedtuple('Info', ['name', 'original'])
+        html = self._get_html(part=part, page=page)
         soup = BeautifulSoup(html, self.parser)
         soup2 = soup.find_all('a', attrs={'rel': 'bookmark'})
         url_list = []
         for s in soup2:
             s = BeautifulSoup(str(s), self.parser)
-            url_list.append((s.a['href'], s.span.string))
+            url_list.append(Info(s.span.string, s.a['href']))
         return url_list
 
-    @check_execption
     def _get_pan_info(self, url):
-        html = self.session.get(url).text
+        html = self._get_html(url=url)
         base_soup = BeautifulSoup(html, self.parser)
         soup2 = base_soup.find_all('a')
         pan_url_list = []
@@ -109,22 +114,16 @@ class DianboClient:
         return self._get_info('music', page)
 
     def get_all_tvshow(self):
-        tvshow_list = []
         for num in range(self.tvshow_pages):
-            tvshow_list.extend(self._get_info('tvshow', num+1))
-        return tvshow_list
+            yield self._get_info('tvshow', num+1)
 
     def get_all_movie(self):
-        movie_list = []
         for num in range(self.movie_pages):
-            movie_list.extend(self._get_info('movie', num + 1))
-        return movie_list
+            yield self._get_info('movie', num + 1)
 
     def get_all_music(self):
-        music_list = []
         for num in range(self.music_pages):
-            music_list.extend(self._get_info('music', num + 1))
-        return music_list
+            yield self._get_info('music', num + 1)
 
     def get_pan_info(self, url):
         return self._get_pan_info(url)
