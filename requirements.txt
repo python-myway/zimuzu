@@ -1,9 +1,7 @@
-py-oauth2>=0.0.8
-six>=1.4.1
 aiohttp==2.2.3
 beautifulsoup4==4.6.0
-requests
-sqlalchemy
-pymysql
-blinker
-sanic
+blinker==1.4
+PyMySQL==0.7.11
+requests==2.18.1
+sanic==0.6.0
+SQLAlchemy==1.1.11

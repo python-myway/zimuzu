@@ -1,11 +1,13 @@
-from contextlib import contextmanager
 from collections import namedtuple
+from contextlib import contextmanager
 
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
+import pymysql
+pymysql.install_as_MySQLdb()
 
-from client.mailbase import email_dispatched, Message, Connection
+from ext.mailbase import email_dispatched, Message, Connection
 
 
 async def get_source():
