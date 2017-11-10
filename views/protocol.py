@@ -3,12 +3,19 @@ from sanic.request import Request as _Request
 from sanic.response import text, json
 
 
+iteritems = lambda d, *args, **kwargs: iter(d.items(*args, **kwargs))
+
+
 class Request(_Request):
-    __slots__ = (
-        'url', 'headers', 'version', 'method', '_cookies',
-        'query_string', 'body', 'start', 'limit',
-        'parsed_json', 'parsed_args', 'parsed_form', 'parsed_files',
-    )
+
+    def lists(self):
+        for key, values in iteritems(dict, self):
+            yield key, list(values)
+
+    def to_dict(self, flat=True):
+        if flat:
+            return dict(iteritems(self))
+        return dict(self.lists())
 
 
 class JSONHttpProtocol(HttpProtocol):

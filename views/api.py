@@ -2,7 +2,7 @@ from sanic import Blueprint
 from sanic.response import json
 
 from models.models import Subscriber, Resources, session
-from schemas.schemas import SubscribeSchema
+from schemas.schemas import SubscribeSchema, ResourceSchema
 from views.utils import marshal_with
 from tasks.tasks import init_email
 
@@ -12,14 +12,25 @@ bp = Blueprint('api', url_prefix='/api/v1')
 @bp.route('/subscribe/', methods=['POST'])
 # @marshal_with(SubscribeSchema)
 async def subscribe(request):
-    nick_name = request.form.get('nick_name')
-    email = request.form.get('email')
-    resources = request.form.getlist('resources')
-    new_resources = ','.join(resources)
+    schema = SubscribeSchema()
+    data, error = schema.load(request.form)  # todo 传入空的字符串不能required不能识别
+    # if error:
+    #     return json({'resp': 'error',
+    #
+    #                   'msg': error})
+    if not data['nick_name']:
+        return json({'resp': 'error', 'msg': '该字段必填'})
+    try:
+        data['nick_name']
+    except KeyError as e:
+        return json({'resp': 'error', 'msg': e.args})
+    resources = request.form.getlist('resources', [])
+    if not resources:
+        return json({'resp': 'error', 'msg': '该字段必填'})
     subscriber = Subscriber()
-    subscriber.nick_name = nick_name
-    subscriber.email = email
-    subscriber.resources = new_resources
+    subscriber.nick_name = data['nick_name']
+    subscriber.email = data['email']
+    subscriber.resources = ','.join(resources)
     session.add(subscriber)
     try:
         session.commit()
@@ -27,17 +38,15 @@ async def subscribe(request):
     except Exception as e:
         session.rollback()
         session.close()
+        return json({'resp': 'error',
+                     'msg': str(e.args)})
     await init_email(resources)
     return json({'resp': 'ok'})
 
 
 @bp.route('/resources/', methods=['GET'])
+# @marshal_with(ResourceSchema)
 async def resources(request):
-    resources_list = []
-    for uuid, original, name in session.query(Resources.uuid, Resources.original, Resources.name).all()[:5]:
-        resources_list.append({
-            'id': uuid,
-            'url': original,
-            'name': name
-        })
-    return json(resources_list)
+    schema = ResourceSchema()
+    query = session.query(Resources.uuid, Resources.original, Resources.name).all()
+    return schema.jsonify(query, many=True)

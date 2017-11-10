@@ -1,9 +1,10 @@
 from sanic import Sanic
 
 from views.api import bp
-from views.protocol import JSONHttpProtocol
+from views.protocol import JSONHttpProtocol, Request
 
-app = Sanic(__name__)
+
+app = Sanic(__name__, request_class=Request)
 app.blueprint(bp)
 app.static('/static', './static')
 
