@@ -16,4 +16,4 @@ app.static('/static', './static')
 
 
 if __name__ == '__main__':
-    app.run(host='localhost', port=8300, workers=4, debug=True)
+    app.run(host='localhost', port=8300, workers=1, debug=True)

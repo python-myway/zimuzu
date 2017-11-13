@@ -44,9 +44,19 @@ async def subscribe(request):
     return json({'resp': 'ok'})
 
 
+# @bp.route('/resources/', methods=['GET'])
+# # @marshal_with(ResourceSchema)
+# async def resources(request):
+#     schema = ResourceSchema()
+#     query = session.query(Resources.uuid, Resources.original, Resources.name).all()
+#     return schema.jsonify(query, many=True, headers={'Access-Control-Allow-Origin': '*/*'})
+
+
 @bp.route('/resources/', methods=['GET'])
 # @marshal_with(ResourceSchema)
 async def resources(request):
-    schema = ResourceSchema()
-    query = session.query(Resources.uuid, Resources.original, Resources.name).all()
-    return schema.jsonify(query, many=True)
+    query_list = []
+    query = session.query(Resources).limit(10)
+    for q in query:
+        query_list.append([q.name, q.owner, q.original])
+    return json(query_list, headers={'Access-Control-Allow-Origin': '*'})
