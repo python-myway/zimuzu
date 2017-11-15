@@ -11,6 +11,140 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.11.1/locale/bootstrap-table-zh-CN.min.js"></script>
 </head>
 <body>
+    <div class="container">
+        <div>
+            <form class="form-inline">
+                <div class="form-group">
+                    <label for="nick_name">Name</label>
+                    <input type="text" class="form-control" id="nick_name" placeholder="Jane Doe">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" class="form-control" id="email" placeholder="jane.doe@example.com">
+                </div>
+            </form>
+            <button class="btn btn-default" id="subscribe">订阅</button>
+        </div>
+        <table class="table table-hover" id="cusTable"
+            data-search="true"
+            data-striped="true"
+            data-pagination="true"
+            data-page-size="20"
+            data-search-align="right"
+            >
+            <thead>
+                <tr>
+                    <th data-checkbox="true" data-field="choose">选择</th>
+                    <th data-field="uuid" data-visible="false">记录UUID</th>
+                    <th data-field="recordId">记录ID</th>
+                    <th data-field="name">名称</th>
+                    <th data-field="owner">所有者</th>
+                    <th data-field="originalUrl">原始地址</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
 
+    </div>
+    <script type="text/javascript">
+        function initTable() {
+            //先销毁表格
+            $('#cusTable').bootstrapTable('destroy');
+            //初始化表格,动态从服务器加载数据
+            $("#cusTable").bootstrapTable({
+                method: "get",  //使用get请求到服务器获取数据
+                url: "http://localhost:8300/api/v1/resources/", //获取数据的Servlet地址
+                dataType: "jsonp",
+                crossDomain: true,
+                striped: true,  //表格显示条纹
+                pagination: true, //启动分页
+                pageSize: 1,  //每页显示的记录数
+                pageNumber:1, //当前第几页
+                pageList: [5, 10, 15, 20, 25],  //记录数可选列表
+                search: true,  //是否启用查询
+                showColumns: false,  //显示下拉框勾选要显示的列
+                showRefresh: true,  //显示刷新按钮
+                sidePagination: "server", //表示服务端请求
+                //设置为undefined可以获取pageNumber，pageSize，searchText，sortName，sortOrder
+                //设置为limit可以获取limit, offset, search, sort, order
+                queryParamsType : "undefined",
+                queryParams: function queryParams(params) {   //设置查询参数
+                    var param = {
+                        pageNumber: params.pageNumber,
+                        pageSize: params.pageSize,
+                    };
+                    return param;
+                },
+                columns: [
+                    {
+                        title: '记录ID',
+                        field: 'recordId',
+                        align: 'center',
+                        valign: 'middle'
+                    },
+                    {
+                        title: '名称',
+                        field: 'name',
+                        align: 'center',
+                        valign: 'middle',
+                    },
+                    {
+                        title: '所有者',
+                        field: 'owner',
+                        align: 'center'
+                    },
+                    {
+                      title: '原始地址',
+                      field: 'originalUrl',
+                      align: 'center'
+                    },
+                ],
+
+                onLoadSuccess: function(data){  //加载成功时执行
+                    console.log(data);
+                },
+            });
+        }
+
+        $(document).ready(function () {
+            //调用函数，初始化表格
+            //initTable();
+
+            $.get("http://localhost:8300/api/v1/resources/",
+                function (result) {
+                    var mydata = {total:result.total,rows:result.rows};
+                    $("#cusTable").bootstrapTable({
+                        dataType: "json",
+                        data: mydata.rows,
+                    });
+            });
+            //当点击查询按钮的时候执行
+            $("#search").bind("click", initTable);
+        });
+
+        $("#subscribe").click(
+            function () {
+                function getIdSelections() {
+                    return $.map($("#cusTable").bootstrapTable('getSelections'), function (row) {
+                        return row.uuid
+                    });
+                }
+
+                var nickName = $("#nick_name").val();
+                var email = $("#email").val();
+
+                $.post("http://localhost:8300/api/v1/subscribe/",
+                    { "nick_name": nickName, "email": email, "resources": getIdSelections()},
+                    function (data) {
+                        if (data == "ok") {
+                            alert("添加成功！");
+                        }else {
+                            alert(data)
+                        }
+                    }
+                )
+            });
+    </script>
 </body>
 </html>

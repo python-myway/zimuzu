@@ -1,3 +1,4 @@
+import json as b_json
 from sanic import Blueprint
 from sanic.response import json
 
@@ -19,14 +20,14 @@ async def subscribe(request):
     #
     #                   'msg': error})
     if not data['nick_name']:
-        return json({'resp': 'error', 'msg': '该字段必填'})
+        return json({'resp': 'error', 'msg': '该字段必填'}, headers={'Access-Control-Allow-Origin': '*'})
     try:
         data['nick_name']
     except KeyError as e:
-        return json({'resp': 'error', 'msg': e.args})
-    resources = request.form.getlist('resources', [])
+        return json({'resp': 'error', 'msg': e.args}, headers={'Access-Control-Allow-Origin': '*'})
+    resources = request.form.getlist('resources[]', [])
     if not resources:
-        return json({'resp': 'error', 'msg': '该字段必填'})
+        return json({'resp': 'error', 'msg': '该字段必填'}, headers={'Access-Control-Allow-Origin': '*'})
     subscriber = Subscriber()
     subscriber.nick_name = data['nick_name']
     subscriber.email = data['email']
@@ -39,9 +40,9 @@ async def subscribe(request):
         session.rollback()
         session.close()
         return json({'resp': 'error',
-                     'msg': str(e.args)})
+                     'msg': str(e.args)}, headers={'Access-Control-Allow-Origin': '*'})
     await init_email(resources)
-    return json({'resp': 'ok'})
+    return json({'resp': 'ok'}, headers={'Access-Control-Allow-Origin': '*'})
 
 
 # @bp.route('/resources/', methods=['GET'])
@@ -56,7 +57,17 @@ async def subscribe(request):
 # @marshal_with(ResourceSchema)
 async def resources(request):
     query_list = []
-    query = session.query(Resources).limit(10)
+    query = session.query(Resources).limit(50)
     for q in query:
-        query_list.append([q.name, q.owner, q.original])
-    return json(query_list, headers={'Access-Control-Allow-Origin': '*'})
+        query_list.append({
+            'uuid': q.uuid,
+            'recordId': q.id,
+            'name': q.name,
+            'owner': q.owner,
+            'originalUrl': q.original
+        })
+    table_dict = {
+        'total': 10,
+        'rows': query_list
+    }
+    return json(table_dict, headers={'Access-Control-Allow-Origin': '*'})
