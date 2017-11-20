@@ -57,7 +57,7 @@ class DianboClient:
             self.session.close()
 
     @check_execption
-    def _get_html(self, part=None, page=None, url=None):
+    def get_html(self, part=None, page=None, url=None):
         if part and not page:
             return self.session.get(self.page_url.format(part))
         if part and page:
@@ -66,7 +66,7 @@ class DianboClient:
             return self.session.get(url)
 
     def _get_page(self, part):
-        html = self._get_html(part=part)
+        html = self.get_html(part=part)
         base_soup = BeautifulSoup(html, self.parser)
         raw_page = base_soup.find_all('a', attrs={'class': 'page-numbers'})[-2]
         pages = BeautifulSoup(str(raw_page), self.parser).a.string
@@ -74,7 +74,7 @@ class DianboClient:
 
     def _get_info(self, part, page):
         Info = namedtuple('Info', ['name', 'original'])
-        html = self._get_html(part=part, page=page)
+        html = self.get_html(part=part, page=page)
         soup = BeautifulSoup(html, self.parser)
         soup2 = soup.find_all('a', attrs={'rel': 'bookmark'})
         url_list = []
@@ -84,7 +84,7 @@ class DianboClient:
         return url_list
 
     def _get_pan_info(self, url):
-        html = self._get_html(url=url)
+        html = self.get_html(url=url)
         base_soup = BeautifulSoup(html, self.parser)
         soup2 = base_soup.find_all('a')
         pan_url_list = []
