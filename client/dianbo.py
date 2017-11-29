@@ -90,7 +90,7 @@ class DianboClient:
         pan_url_list = []
         for s in soup2:
             s = BeautifulSoup(str(s), 'lxml')
-            if s.a.string == '百度网盘':
+            if s.a.string in ['百度网盘', '百度云盘']:
                 pan_url_list.append(s.a['href'])
         return pan_url_list
 

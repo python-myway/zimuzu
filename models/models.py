@@ -14,10 +14,11 @@ class MyBase:
     def __tablename__(cls):
         return cls.__name__.lower()
 
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    uuid = Column(String(50), default=gen_uuid)
-    create_time = Column(DateTime, default=datetime.datetime.now)
-    update_time = Column(DateTime, onupdate=datetime.datetime.now, default=datetime.datetime.now)
+    # todo 在此处写的comment，并没有在创建数据表的时候写出来
+    id = Column(Integer, autoincrement=True, primary_key=True, comment='ID')
+    uuid = Column(String(50), default=gen_uuid, comment='UUID')
+    create_time = Column(DateTime, default=datetime.datetime.now, comment='创建时间')
+    update_time = Column(DateTime, onupdate=datetime.datetime.now, default=datetime.datetime.now, comment='更新时间')
 
 
 Base = declarative_base(cls=MyBase)
@@ -27,28 +28,28 @@ session = Session()
 
 
 class Resources(Base):
-    name = Column(String(255))  # 名称
-    owner = Column(String(255))  # 所属的字幕组
-    stype = Column(String(255))  # 类型，目前有music，movie，tvshow
-    original = Column(String(255))  # 原始的url
+    name = Column(String(255), comment='名称')
+    owner = Column(String(255), comment='所属的字幕组')
+    stype = Column(String(255), comment='类型，目前有music，movie，tvshow')
+    original = Column(String(255), comment='原始的url')
 
     def __repr__(self):
         pass
 
 
 class Subscriber(Base):
-    nick_name = Column(String(50))  # 昵称
-    email = Column(String(50))  # 邮箱
-    resources = Column(String(255))  # 订阅的资源
+    nick_name = Column(String(50), comment='昵称')
+    email = Column(String(50), comment='邮箱')
+    resources = Column(String(255), comment='订阅的资源')
 
     def __repr__(self):
         pass
 
 
 class Location(Base):
-    episode = Column(Integer, default=1)  # 集数
-    url = Column(String(255))
-    resource = Column(String(50))  # 对应资源的UUID
+    episode = Column(Integer, default=1, comment='集数')
+    url = Column(String(255), comment='url地址')
+    resource = Column(String(50), comment='对应资源的UUID')
 
     def __repr__(self):
         pass

@@ -24,8 +24,9 @@ email_client = EmailClient('smtp.163.com', 'chengganqin@163.com', 'hunting##1612
 # 初始化，拉取所有的资源信息
 def init_task():
     tvshow = dianbo_client.get_all_tvshow()
-    try:
-        for item in tvshow:  # todo 这个地方很奇怪,要修正,深入了解yield用法
+    while True:
+        try:
+            item = next(tvshow)
             for item_ in item:
                 resource = Resources()
                 resource.name = item_.name
@@ -33,15 +34,16 @@ def init_task():
                 resource.stype = 'tvshow'
                 resource.owner = '电波字幕组'
                 session.add(resource)
-        try:
-            session.commit()
-        except Exception as e:
-            session.rollback()
+            try:
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                session.close()
+                print(e.args)
+        except StopIteration:
             session.close()
-            print(e.args)
-    except StopIteration:
-        session.close()
-        print('ok')
+            print('ok')
+            break
 
 
 def get_signal(sender, changes):
@@ -49,10 +51,11 @@ def get_signal(sender, changes):
 
 
 def init_pan_task():
-    for uuid, original in session.query(Resources.uuid, Resources.original).all():
-        for i, url in enumerate(dianbo_client.get_pan_info(original)):
+    global url_dict
+    for key, value in url_dict.items():
+        for i, url in enumerate(dianbo_client.get_pan_info(value)):
             location = Location()
-            location.resource = uuid
+            location.resource = key
             location.url = url
             location.episode = i + 1
             session.add(location)
@@ -63,11 +66,12 @@ def init_pan_task():
             session.rollback()
             session.close()
             print(e.args)
+    print('ok')
 
 
 def init_env_var():
     global url_dict, md5_dict
-    for uuid, original in session.query(Resources.uuid, Resources.original).limit(5):
+    for uuid, original in session.query(Resources.uuid, Resources.original).all():
         url_dict[uuid] = original
         md5_dict[uuid] = md5(requests.get(original).content)
 
@@ -146,14 +150,4 @@ async def update_email():
 
 
 if __name__ == '__main__':
-    # original_url.connect(get_signal)
-    # init_task()
-    # init_pan_task()
-    # init_email(['20604dbf-c524-11e7-a3e2-002324af93be', '20604e19-c524-11e7-a3e2-002324af93be'])
-    init_env_var()
-    for key, value in url_dict.items():
-        print('{}--------{}'.format(key, value))
-        break
-    for key, value in md5_dict.items():
-        print('{}--------{}'.format(key, value))
-        break
+    get_one_pan('dd0def6a-d4de-11e7-b4ae-002324af93be', 'http://dbfansub.com/tvshow/10592.html', update=False)
