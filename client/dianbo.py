@@ -190,7 +190,7 @@ class BaiduyunClient:
 
 
 if __name__ == '__main__':
-    mail = EmailClient('smtp.163.com', 'chengganqin@163.com', 'hunting##161201', 25)
-    msg = Message(subject='测试', recipients=[('test', '1612134263@qq.com')], sender=('test', 'chengganqin@163.com'))
+    mail = EmailClient('smtp.163.com', 'your@email.address', 'your-email-password', 25)
+    msg = Message(subject='测试', recipients=[('test', 'your@email.address')], sender=('test', 'your@email.address'))
     msg.body = 'http://test.com\nhttp://test.com\n'
     mail.send(msg)

@@ -14,7 +14,7 @@ class MyBase:
     def __tablename__(cls):
         return cls.__name__.lower()
 
-    # todo 在此处写的comment，并没有在创建数据表的时候写出来
+    # todo 在此处写的comment，并没有在创建数据表的时候写出来,sqlalchemy2版本实现了这个功能
     id = Column(Integer, autoincrement=True, primary_key=True, comment='ID')
     uuid = Column(String(50), default=gen_uuid, comment='UUID')
     create_time = Column(DateTime, default=datetime.datetime.now, comment='创建时间')
