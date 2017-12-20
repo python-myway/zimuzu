@@ -1,10 +1,9 @@
-from collections import namedtuple
 from contextlib import contextmanager
 import logging
 
 from client.base import BaseClient
 from ext.mailbase import email_dispatched, Message, Connection
-from models.models import Resources, Location
+from models.models import Resources, Location, session
 
 
 class DianboClient(BaseClient):
@@ -37,10 +36,17 @@ class DianboClient(BaseClient):
         info_list = []
         for s in soup2:
             s = self.soup(str(s))
-            info_list.append((s.span.string, s.a['href']))
-            resource = Resources(name=s.span.string, owner='电波字幕组', stype='tvshow', original=s.a['href'])
+            info_list.append((s.span.string, s.a['href']))  # 放进redis数据库后再读取
+            resource = Resources(name=s.span.string, owner='电波字幕组',
+                                 stype='tvshow', original=s.a['href'])
+            session.add(resource)
+        try:
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logging.error('插入数据库发生错误--{}'.format(str(e)))
 
-    async def process_pan_info(self, html):
+    async def process_pan_info(self, html, resource):
         """ 返回每季资源的百度网盘地址 """
 
         soup2 = self.soup(html).find_all('a')
@@ -48,15 +54,14 @@ class DianboClient(BaseClient):
         for s in soup2:
             s = self.soup(str(s))
             if s.a.string in ['百度网盘', '百度云盘']:
-                pan_list.append(s.a['href'])
-        return pan_list
-
-    async def run(self):
-        page_num = await self.process_page_number(self.root_url)
-        while page_num >= 0:
-            html = await self.process_html('/{}'.format(self.root_url))
-            info_list = await self.process_page_info(html)
-
+                pan_list.append((s.a['href'], 'episode'))  # 放进redis数据库后再读取
+                location = Location(episode='', url=s.a['href'], resource=resource)
+                session.add(location)
+        try:
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logging.error('插入数据库发生错误--{}'.format(str(e)))
 
 
 class EmailClient:

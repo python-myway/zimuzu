@@ -1,11 +1,8 @@
 import smtplib
-import asyncio
-from asyncio import Queue
 from hashlib import md5
 
 import requests
 from blinker import signal
-import aiohttp
 
 from client.dianbo import DianboClient, EmailClient
 from models.models import Resources, Location, session
