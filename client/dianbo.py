@@ -1,134 +1,62 @@
 from collections import namedtuple
 from contextlib import contextmanager
+import logging
 
-import aiohttp
-import requests
-from bs4 import BeautifulSoup
-import pymysql
-pymysql.install_as_MySQLdb()
-
+from client.base import BaseClient
 from ext.mailbase import email_dispatched, Message, Connection
+from models.models import Resources, Location
 
 
-async def get_source():
-    async with aiohttp.ClientSession() as session:
-        async with session.get('https://api.github.com/events') as resp:
-            print(resp.status)
-            print(await resp.text())
+class DianboClient(BaseClient):
 
+    async def process_html(self, url):
+        """ 返回一个html页面的数据 """
 
-class DianboAPIError(Exception):
-    def __init__(self, resp):
-        self.status = resp.status_code
-        self.reason = resp.reason
+        try:
+            resp = await self.session.get(url)
+        except Exception as exc:
+            logging.error('{} has error: {}'.format(url, str(exc)))
+            self.done[url] = False
+        else:
+            if resp.status == 200 and ('text/html' in resp.headers.get('content-type')):
+                data = (await resp.read()).decode('utf-8', 'replace')
+                return data
 
-    def __str__(self):
-        return '***{} ({})'.format(self.status, self.reason)
+    async def process_page_number(self, url):
+        """ 返回每个大项的页数，如关于电视剧的所有资源的页数 """
 
-
-def check_execption(func):
-    def _check(*arg, **kwargs):
-        resp = func(*arg, **kwargs)
-        if resp.status_code >= 400:
-            raise DianboAPIError(resp)
-        return resp.text
-    return _check
-
-
-class DianboClient:
-
-    def __init__(self):
-        self.session = requests.session()
-        self.parser = 'lxml'
-        self.page_url = 'http://dbfansub.com/category/{}'
-        self.info_url = 'http://dbfansub.com/category/{}/page/{}'
-
-    def __repr__(self):
-        return '<Dianbo Client at {}>'.format(id(self))
-
-    def __call__(self, *args, **kwargs):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.session:
-            self.session.close()
-
-    @check_execption
-    def get_html(self, part=None, page=None, url=None):
-        if part and not page:
-            return self.session.get(self.page_url.format(part))
-        if part and page:
-            return self.session.get(self.info_url.format(part, page))
-        if url:
-            return self.session.get(url)
-
-    def _get_page(self, part):
-        html = self.get_html(part=part)
-        base_soup = BeautifulSoup(html, self.parser)
-        raw_page = base_soup.find_all('a', attrs={'class': 'page-numbers'})[-2]
-        pages = BeautifulSoup(str(raw_page), self.parser).a.string
+        html = await self.process_html(url)
+        raw_page = self.soup(html).find_all('a', attrs={'class': 'page-numbers'})[-2]
+        pages = self.soup(str(raw_page)).a.string
         return int(pages)
 
-    def _get_info(self, part, page):
-        Info = namedtuple('Info', ['name', 'original'])
-        html = self.get_html(part=part, page=page)
-        soup = BeautifulSoup(html, self.parser)
-        soup2 = soup.find_all('a', attrs={'rel': 'bookmark'})
-        url_list = []
-        for s in soup2:
-            s = BeautifulSoup(str(s), self.parser)
-            url_list.append(Info(s.span.string, s.a['href']))
-        return url_list
+    async def process_page_info(self, html):
+        """ 返回单页上所有的数据列表 """
 
-    def _get_pan_info(self, url):
-        html = self.get_html(url=url)
-        base_soup = BeautifulSoup(html, self.parser)
-        soup2 = base_soup.find_all('a')
-        pan_url_list = []
+        soup2 = self.soup(html).find_all('a', attrs={'rel': 'bookmark'})
+        info_list = []
         for s in soup2:
-            s = BeautifulSoup(str(s), 'lxml')
+            s = self.soup(str(s))
+            info_list.append((s.span.string, s.a['href']))
+            resource = Resources(name=s.span.string, owner='电波字幕组', stype='tvshow', original=s.a['href'])
+
+    async def process_pan_info(self, html):
+        """ 返回每季资源的百度网盘地址 """
+
+        soup2 = self.soup(html).find_all('a')
+        pan_list = []
+        for s in soup2:
+            s = self.soup(str(s))
             if s.a.string in ['百度网盘', '百度云盘']:
-                pan_url_list.append(s.a['href'])
-        return pan_url_list
+                pan_list.append(s.a['href'])
+        return pan_list
 
-    @property
-    def tvshow_pages(self):
-        return self._get_page('tvshow')
+    async def run(self):
+        page_num = await self.process_page_number(self.root_url)
+        while page_num >= 0:
+            html = await self.process_html('/{}'.format(self.root_url))
+            info_list = await self.process_page_info(html)
 
-    @property
-    def movie_pages(self):
-        return self._get_page('movie')
-
-    @property
-    def music_pages(self):
-        return self._get_page('music')
-
-    def get_one_page_tvshow(self, page):
-        return self._get_info('tvshow', page)
-
-    def get_one_page_movie(self, page):
-        return self._get_info('movie', page)
-
-    def get_one_page_music(self, page):
-        return self._get_info('music', page)
-
-    def get_all_tvshow(self):
-        for num in range(self.tvshow_pages):
-            yield self._get_info('tvshow', num+1)
-
-    def get_all_movie(self):
-        for num in range(self.movie_pages):
-            yield self._get_info('movie', num + 1)
-
-    def get_all_music(self):
-        for num in range(self.music_pages):
-            yield self._get_info('music', num + 1)
-
-    def get_pan_info(self, url):
-        return self._get_pan_info(url)
 
 
 class EmailClient:
@@ -183,10 +111,6 @@ class EmailClient:
 
     def with_html_email(self):
         pass
-
-
-class BaiduyunClient:
-    pass
 
 
 if __name__ == '__main__':
