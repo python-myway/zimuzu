@@ -18,7 +18,7 @@ md5_dict = {}
 url_dict = {}
 
 dianbo_client = DianboClient()
-email_client = EmailClient('smtp.163.com', 'chengganqin@163.com', 'hunting##161201', 25)
+email_client = EmailClient('smtp.163.com', 'xxx', 'xxx', 25)
 
 
 # 初始化，拉取所有的资源信息
