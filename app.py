@@ -1,20 +1,37 @@
 from sanic import Sanic
-
 from sqlalchemy import func
 
 from ext.resp import Request, resp_error, resp_ok
-from models.models import Subscriber, Resources, session
-from schemas.schemas import SubscribeSchema, ResourceSchema
-from tasks.tasks import init_email
-
+from ext.schemabase import Marshmallow
+from models import Subscriber, Resources, session
+from tasks import init_email
 
 app = Sanic(__name__, request_class=Request)
 app.static('/static', './static')
 
 
+# ======= Start of Schema ========
+ma = Marshmallow()
+
+
+class SubscribeSchema(ma.Schema):
+    nick_name = ma.Str(required=True, error_messages={'required': '该字段必填'})
+    email = ma.Email(required=True, error_messages={'required': '该字段必填', 'invalid': '字段格式不正确'})
+    resources = ma.Str(required=True, error_messages={'required': '该字段必填'})
+
+
+class ResourceSchema(ma.Schema):
+    uuid = ma.Str()
+    id = ma.Str()
+    url = ma.Str(attribute='original')
+    name = ma.Str()
+    owner = ma.Str()
+# ======= End of Schema ========
+
+
 @app.middleware('response')
 async def custom_header(request, response):
-    """ 测试需要 """
+    """ 本地测试需要 """
     response.headers['Access-Control-Allow-Origin'] = '*'
 
 

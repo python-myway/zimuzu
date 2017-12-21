@@ -56,8 +56,4 @@ class Location(Base):
 
 
 if __name__ == '__main__':
-    try:
-        Base.metadata.drop_all(engine)
-    except Exception:
-        pass
-    Base.metadata.create_all(engine)
+    pass

@@ -10,7 +10,7 @@ from client.log import CLIENT_LOGGING
 
 class BaseClient:
 
-    def __init__(self, root_url, loop, log_config=CLIENT_LOGGING, parser=None):
+    def __init__(self, root_url, loop, log_config=CLIENT_LOGGING, parser='lxml'):
         self.root_url = root_url
         self.loop = loop
         self.session = aiohttp.ClientSession(loop=loop)

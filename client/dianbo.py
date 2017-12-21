@@ -1,9 +1,9 @@
-from contextlib import contextmanager
 import logging
+from contextlib import contextmanager
 
 from client.base import BaseClient
 from ext.mailbase import email_dispatched, Message, Connection
-from models.models import Resources, Location, session
+from models import Resources, Location, session
 
 
 class DianboClient(BaseClient):
@@ -15,16 +15,15 @@ class DianboClient(BaseClient):
             resp = await self.session.get(url)
         except Exception as exc:
             logging.error('{} has error: {}'.format(url, str(exc)))
-            self.done[url] = False
         else:
             if resp.status == 200 and ('text/html' in resp.headers.get('content-type')):
                 data = (await resp.read()).decode('utf-8', 'replace')
                 return data
 
-    async def process_page_number(self, url):
+    async def process_page_number(self):
         """ 返回每个大项的页数，如关于电视剧的所有资源的页数 """
 
-        html = await self.process_html(url)
+        html = await self.process_html(self.root_url)
         raw_page = self.soup(html).find_all('a', attrs={'class': 'page-numbers'})[-2]
         pages = self.soup(str(raw_page)).a.string
         return int(pages)
@@ -36,32 +35,42 @@ class DianboClient(BaseClient):
         info_list = []
         for s in soup2:
             s = self.soup(str(s))
-            info_list.append((s.span.string, s.a['href']))  # 放进redis数据库后再读取
+            info_list.append((s.span.string, s.a['href']))  # todo 放进redis数据库后再读取
             resource = Resources(name=s.span.string, owner='电波字幕组',
                                  stype='tvshow', original=s.a['href'])
             session.add(resource)
         try:
             session.commit()
+            info_list = []
         except Exception as e:
             session.rollback()
             logging.error('插入数据库发生错误--{}'.format(str(e)))
+        finally:
+            session.close()
+            return info_list
 
-    async def process_pan_info(self, html, resource):
+    async def process_pan_info(self, html, resource, update=False):
         """ 返回每季资源的百度网盘地址 """
 
         soup2 = self.soup(html).find_all('a')
+        if update:
+            soup2 = list(soup2[-1])
         pan_list = []
         for s in soup2:
             s = self.soup(str(s))
             if s.a.string in ['百度网盘', '百度云盘']:
-                pan_list.append((s.a['href'], 'episode'))  # 放进redis数据库后再读取
+                pan_list.append(('episode', s.a['href'], resource))  # todo 放进redis数据库后再读取
                 location = Location(episode='', url=s.a['href'], resource=resource)
                 session.add(location)
         try:
             session.commit()
+            pan_list = []
         except Exception as e:
             session.rollback()
             logging.error('插入数据库发生错误--{}'.format(str(e)))
+        finally:
+            session.close()
+            return pan_list
 
 
 class EmailClient:
