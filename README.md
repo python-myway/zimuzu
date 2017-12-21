@@ -52,13 +52,26 @@
 
 ```
 1. fork项目，并克隆到本地
-git clone xxx
+git clone https://github.com/python-myway/zimuzu.git
+
 2. 在根目录下添加local_config.py文件，添加config.py中的个人配置
+vim local_config.py
+
 3. 在虚拟环境中安装依赖
+pip install -r requirements.txt
+
 4. 在本地的MySQL中添加zimuzu数据库
+mysql && CREATE SCHEMA `zimuzu` DEFAULT CHARACTER SET utf8;
+
 5. 执行脚本，初始化相关models
+python script.py --func init_db
+
 6. 执行脚本，初始化资源和网盘的信息
+python script.py --func init_data
+
 7. 启动后端代码
+python app.py
+
 8. 在浏览器中打开index.html，查看效果
 ```
 

@@ -1,5 +1,7 @@
 import argparse
 
+from tasks import *
+
 
 # 初始化数据库
 def init_db():
@@ -13,10 +15,12 @@ def init_db():
 
 # 初始化数据
 def init_data():
-    pass
+    init_page_task()
+    init_env_var()
+    init_pan_task()
 
 
-# 命令行订阅，发邮件
+# todo 命令行订阅，发邮件
 def geek_subscribe():
     pass
 
@@ -26,13 +30,22 @@ def update():
     pass
 
 
+def main(func_name):
+    func_dict = {
+        'init_db': init_db,
+        'init_data': init_data,
+        'geek': geek_subscribe,
+        'update': update,
+    }
+    func_dict.get(func_name)()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='命令行执行脚本')
-    parser.add_argument('-func', "--function", type=callable,
-                        choices=[init_db, init_data, geek_subscribe, update],
-                        help='选择要执行的函数')
+    parser.add_argument('--func', type=str, help='选择要执行的函数')
     args = parser.parse_args()
-    if args.function:
-        args.function()
+    print(args)
+    if args.func:
+        main(args.func)
     else:
         print('请输入正确的函数执行')
