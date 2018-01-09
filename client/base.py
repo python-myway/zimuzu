@@ -16,8 +16,8 @@ class BaseClient:
         self.session = aiohttp.ClientSession(loop=loop)
         self.parser = parser
 
-        if log_config:
-            logging.config.dictConfig(log_config)
+        # if log_config:
+        #     logging.config.dictConfig(log_config)
 
     def __repr__(self):
         return '<Client at {}>'.format(id(self))

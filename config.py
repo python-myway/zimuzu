@@ -1,14 +1,12 @@
-import sys
+import pymysql
 
-
-sys.modules["MySQLdb"] = sys.modules["_mysql"] = sys.modules["pymysql"]
-
+pymysql.install_as_MySQLdb()
 
 HOST_EMAIL = {
-    'nick_name': 'zinuzu',
+    'nick_name': '共享俱乐部',
     'server': 'smtp.163.com',
-    'username': 'your@email.address',
-    'password': 'your-email-password',
+    'username': 'xxx',
+    'password': 'xxx',
     'port': 25,
 }
 

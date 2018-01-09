@@ -81,14 +81,15 @@
 
                 var nickName = $("#nick_name").val();
                 var email = $("#email").val();
+                var resources = getIdSelections().join(',')
 
                 $.post("http://localhost:8300/subscribe/",
-                    { "nick_name": nickName, "email": email, "resources": getIdSelections()},
+                    { "nick_name": nickName, "email": email, "resources": resources},
                     function (data) {
                         if (data.msg == "ok") {
                             alert(data.data);
                         }else {
-                            alert(data.data)
+                            alert("订阅失败")
                         }
                     }
                 )

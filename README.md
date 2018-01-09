@@ -13,11 +13,16 @@
 ├── app.py  # 项目后端接口
 ├── config.py  # 配置文件
 ├── index.html  # 前端页面
-├── script.py  # 脚本文件
+├── scripts.py  # 脚本文件
 ├── models.py  # 项目的数据表结构
 ├── tasks.py  # 任务文件
+├── signals.py  # 主要信号
+├── utils.py  # 有用的插件
 ├── README.md  # 项目说明
 ├── requirements.txt  # 依赖包
+│
+├── tests  # 测试
+│   ├── test_tasks.py
 │
 ├── client  # 各种字幕组的客户端
 │   ├── __init__.py
@@ -77,10 +82,27 @@ python app.py
 
 ## TODO(更新中)
 1. 优化邮件内容的格式
-1. 任务使用huey框架(没有使用celery是因为太重了)
 2. 前端使用vue优化下界面
 
 ## 问题&说明(更新中)
+- 问题1
+```
+ERROR:asyncio:Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x7fc359a84f28>
+```
+
+- 问题2
+```
+RuntimeWarning: coroutine 'DianBoTask.get_one_pan' was never awaited
+```
+
+- 问题3
+```
+ImportError: cannot import name 'SIGTERM'
+
+原因：在项目中命名了一个signal.py的文件，覆盖了标准库的signal.py，导致sanic在导入时出错
+```
+
 
 
 

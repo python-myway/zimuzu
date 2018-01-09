@@ -1,3 +1,4 @@
+import re
 import logging
 from contextlib import contextmanager
 
@@ -52,16 +53,28 @@ class DianboClient(BaseClient):
     async def process_pan_info(self, html, resource, update=False):
         """ 返回每季资源的百度网盘地址 """
 
-        soup2 = self.soup(html).find_all('a')
-        if update:
-            soup2 = list(soup2[-1])
+        soup2 = self.soup(html).find_all('p')
         pan_list = []
         for s in soup2:
-            s = self.soup(str(s))
-            if s.a.string in ['百度网盘', '百度云盘']:
-                pan_list.append(('episode', s.a['href'], resource))  # todo 放进redis数据库后再读取
-                location = Location(episode='', url=s.a['href'], resource=resource)
+            try:
+                if s.a.string == '城通网盘':
+                    url = s.a.next_sibling.next_sibling['href']
+                elif s.a.string in ['百度网盘', '百度云盘']:
+                    url = s.a['href']
+                else:
+                    continue
+                str_list = [item for item in s.strings]
+                if not re.search(r'[A-Za-z]+', str_list[-1]):
+                    str_list.append('无密码')
+                pan_list.append((str_list[0], url, resource, str_list[-1]))  # todo 放进redis数据库后再读取
+                location = Location(episode=str_list[0],
+                                    url=url,
+                                    resource=resource,
+                                    password=str_list[-1])
                 session.add(location)
+
+            except AttributeError:
+                continue
         try:
             session.commit()
             pan_list = []
@@ -72,11 +85,18 @@ class DianboClient(BaseClient):
             session.close()
             return pan_list
 
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.session.close()
+
 
 class EmailClient:
-    def __init__(self, server, username, password, port, use_tls=False, use_ssl=False,
+    def __init__(self, nick_name, server, username, password, port, use_tls=False, use_ssl=False,
                  default_sender=None, debug=False, max_emails=None, suppress=False,
                  ascii_attachments=False):
+        self.nick_name = nick_name
         self.server = server
         self.username = username
         self.password = password
@@ -128,7 +148,24 @@ class EmailClient:
 
 
 if __name__ == '__main__':
-    mail = EmailClient('smtp.163.com', 'your@email.address', 'your-email-password', 25)
-    msg = Message(subject='测试', recipients=[('test', 'your@email.address')], sender=('test', 'your@email.address'))
-    msg.body = 'http://test.com\nhttp://test.com\n'
-    mail.send(msg)
+    # mail = EmailClient('smtp.163.com', 'your@email.address', 'your-email-password', 25)
+    # msg = Message(subject='测试', recipients=[('test', 'your@email.address')], sender=('test', 'your@email.address'))
+    # msg.body = 'http://test.com\nhttp://test.com\n'
+    # mail.send(msg)
+    import requests
+    from bs4 import BeautifulSoup
+    html = requests.get('http://dbfansub.com/tvshow/6491.html').text
+    soup = BeautifulSoup(html, 'lxml')
+    soup2 = soup.find_all('p')
+    for s in soup2:
+        try:
+            if s.a.string == '城通网盘':
+                url = s.a.next_sibling.next_sibling['href']
+            elif s.a.string in ['百度网盘', '百度云盘']:
+                url = s.a['href']
+            else:
+                continue
+            str_list = [item for item in s.strings if re.search(r'[A-Za-z]+', item)]
+            print(str_list)
+        except AttributeError:
+            pass

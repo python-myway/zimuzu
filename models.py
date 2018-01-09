@@ -47,13 +47,17 @@ class Subscriber(Base):
 
 
 class Location(Base):
-    episode = Column(Integer, default=1, comment='集数')
+    episode = Column(String(50), comment='集数')
     url = Column(String(255), comment='url地址')
     resource = Column(String(50), comment='对应资源的UUID')
+    password = Column(String(50), comment='百度网盘的密码')
 
     def __repr__(self):
         pass
 
 
 if __name__ == '__main__':
-    pass
+    import pymysql
+    pymysql.install_as_MySQLdb()
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)

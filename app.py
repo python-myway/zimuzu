@@ -35,16 +35,6 @@ async def custom_header(request, response):
     response.headers['Access-Control-Allow-Origin'] = '*'
 
 
-@app.middleware('request')
-async def custom_request(request):
-    # todo 简化这个逻辑
-    temp_dict = {}
-    for item in request.form:
-        if len(request.form.getlist(item)) > 1:
-            temp_dict[item.split('[]')[0]] = ','.join(request.form.getlist(item))
-    request.form.update(temp_dict)
-
-
 @app.route('/subscribe/', methods=['POST'])
 async def subscribe(request):
     schema = SubscribeSchema()
