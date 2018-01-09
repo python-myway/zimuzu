@@ -99,7 +99,6 @@ RuntimeWarning: coroutine 'DianBoTask.get_one_pan' was never awaited
 - 问题3
 ```
 ImportError: cannot import name 'SIGTERM'
-
 原因：在项目中命名了一个signal.py的文件，覆盖了标准库的signal.py，导致sanic在导入时出错
 ```
 
