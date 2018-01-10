@@ -1,6 +1,8 @@
+from datetime import datetime
 import argparse
 
 from tasks import init, update
+import config
 
 
 # 初始化数据库
@@ -13,11 +15,24 @@ def init_db():
     Base.metadata.create_all(engine)
 
 
+# 定时任务
+def update_db():
+    update_config = config.UPDATE_DB
+    while True:
+        time_now = datetime.now()
+        hour = time_now.hour
+        minute = time_now.minute
+        second = time_now.second
+        if update_config[0] == hour and update_config[1] == minute and update_config[2] == second:
+            print(update_config)
+            update()
+
+
 def main(func_name):
     func_dict = {
         'init_db': init_db,
         'init_data': init,
-        'update': update,
+        'update': update_db,
     }
     func_dict.get(func_name)()
 

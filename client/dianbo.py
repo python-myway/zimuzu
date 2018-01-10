@@ -67,14 +67,16 @@ class DianboClient(BaseClient):
                 if not re.search(r'[A-Za-z]+', str_list[-1]):
                     str_list.append('无密码')
                 pan_list.append((str_list[0], url, resource, str_list[-1]))  # todo 放进redis数据库后再读取
-                location = Location(episode=str_list[0],
-                                    url=url,
-                                    resource=resource,
-                                    password=str_list[-1])
-                session.add(location)
-
             except AttributeError:
                 continue
+        if update:
+            pan_list = pan_list[-1]
+        for item in pan_list:
+            location = Location(episode=item[0],
+                                url=item[1],
+                                resource=item[2],
+                                password=item[3])
+            session.add(location)
         try:
             session.commit()
             pan_list = []
@@ -85,10 +87,10 @@ class DianboClient(BaseClient):
             session.close()
             return pan_list
 
-    def __enter__(self):
+    async def __aenter__(self):
         pass
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         self.session.close()
 
 

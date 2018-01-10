@@ -44,7 +44,7 @@ class DianBoTask:
             send_update_email.send(self, resource_uuid)
         self.fail_pan_info.extend(fail_task)
 
-    # 初始化模块的变量
+    # 初始化变量
     async def init_env_var(self):
         for uuid, original in session.query(Resources.uuid, Resources.original).all():
             self.pan_url_dict[uuid] = original
@@ -177,4 +177,3 @@ def update_email(sender, **kw):
 
 if __name__ == '__main__':
     pass
-

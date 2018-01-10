@@ -1,31 +1,30 @@
 from sanic import Sanic
 from sqlalchemy import func
+from marshmallow import Schema, fields
 
-from ext.resp import Request, resp_error, resp_ok
-from ext.schemabase import Marshmallow
+from ext.resp import resp_error, resp_ok
 from models import Subscriber, Resources, session
 from tasks import init_email
 
-app = Sanic(__name__, request_class=Request)
-app.static('/static', './static')
+
+app = Sanic(__name__)
+app.static('/index.html', './static/index.html')
 
 
 # ======= Start of Schema ========
-ma = Marshmallow()
+
+class SubscribeSchema(Schema):
+    nick_name = fields.Str(required=True, error_messages={'required': '该字段必填'})
+    email = fields.Email(required=True, error_messages={'required': '该字段必填', 'invalid': '字段格式不正确'})
+    resources = fields.Str(required=True, error_messages={'required': '该字段必填'})
 
 
-class SubscribeSchema(ma.Schema):
-    nick_name = ma.Str(required=True, error_messages={'required': '该字段必填'})
-    email = ma.Email(required=True, error_messages={'required': '该字段必填', 'invalid': '字段格式不正确'})
-    resources = ma.Str(required=True, error_messages={'required': '该字段必填'})
-
-
-class ResourceSchema(ma.Schema):
-    uuid = ma.Str()
-    id = ma.Str()
-    url = ma.Str(attribute='original')
-    name = ma.Str()
-    owner = ma.Str()
+class ResourceSchema(Schema):
+    uuid = fields.Str()
+    id = fields.Str()
+    url = fields.Str(attribute='original')
+    name = fields.Str()
+    owner = fields.Str()
 # ======= End of Schema ========
 
 
@@ -40,7 +39,9 @@ async def subscribe(request):
     schema = SubscribeSchema()
     data, error = schema.load(request.form)  # todo 传入空的字符串不能required不能识别
     if error:
-        return resp_error(error)
+        for key, value in error.items():
+            error[key] = key + ':' + ','.join(value)
+        return resp_error(';'.join(error.values()))
 
     subscriber = Subscriber()
     subscriber.nick_name = data['nick_name']

@@ -1,4 +1,5 @@
 import pymysql
+from datetime import time
 
 pymysql.install_as_MySQLdb()
 
@@ -22,6 +23,8 @@ MYSQL = {
     'db': 'zimuzu',
 }
 
+
+UPDATE_DB = (17, 54, 00)  # 时，分，秒
 
 try:
     from local_config import *

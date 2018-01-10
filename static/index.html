@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>共享俱乐部</title>
     <link href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.11.1/bootstrap-table.min.css">
     <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
@@ -68,7 +68,7 @@
                     });
             });
             //当点击查询按钮的时候执行
-            $("#search").bind("click", initTable);
+            //$("#search").bind("click", initTable);
         });
 
         $("#subscribe").click(
@@ -89,7 +89,8 @@
                         if (data.msg == "ok") {
                             alert(data.data);
                         }else {
-                            alert("订阅失败")
+                            //console.log(data.data);
+                            alert(data.data);
                         }
                     }
                 )

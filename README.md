@@ -69,15 +69,21 @@ pip install -r requirements.txt
 mysql && CREATE SCHEMA `zimuzu` DEFAULT CHARACTER SET utf8;
 
 5. 执行脚本，初始化相关models
-python script.py --func init_db
+python scripts.py --func init_db
 
 6. 执行脚本，初始化资源和网盘的信息
-python script.py --func init_data
+python scripts.py --func init_data
 
 7. 启动后端代码
 python app.py
 
-8. 在浏览器中打开index.html，查看效果
+8. 在浏览器中打开http://localhost:8300/index.html，查看效果
+
+9. 使用gunicorn启动
+gunicorn -w 4 app:app --bind 127.0.0.1:8300 --worker-class sanic.worker.GunicornWorker
+
+10. 用独立的进程运行定时任务
+python scripts.py --func update
 ```
 
 ## TODO(更新中)
