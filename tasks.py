@@ -1,7 +1,7 @@
 import os
+import subprocess
 import asyncio
 import smtplib
-from hashlib import md5
 
 from sqlalchemy import desc
 
@@ -46,42 +46,36 @@ class DianBoTask:
 
     # 初始化变量
     async def init_env_var(self):
-        for uuid, original in session.query(Resources.uuid, Resources.original).all():
-            self.md5_dict[uuid] = [original]
+        for i, uuid, original in enumerate(session.query(Resources.uuid, Resources.original).all()):
             html = await self.crawl_client.process_html(original)
-            self.md5_dict[uuid].append(md5(html.encode('utf-8')).hexdigest())
-            with open('test.html', 'w') as f:
+            file_name = './html/check_{}.html'.format(i)
+            with open(file_name, 'w') as f:
                 f.write(html)
-                break
+        os.chdir('/home/chenggq/projects/api-show/')
+        subprocess.check_output('git add . && git commit', shell=True)
+
+        # todo 用MD5的值来计算网页是否发生变化
+        # for uuid, original in session.query(Resources.uuid, Resources.original).all():
+        #     self.md5_dict[uuid] = [original]
+        #     html = await self.crawl_client.process_html(original)
+        #     self.md5_dict[uuid].append(md5(html.encode('utf-8')).hexdigest())
         # with open('md5.txt', 'w') as f:
         #     for key, value in self.md5_dict.items():
         #         f.write('{}**{}**{}\n'.format(key, value[0], value[1]))
 
-    # 检查单个是否更新最新集
-    async def check_update(self, original, old_md5):
-        html = await self.crawl_client.process_html(original)
-        md5_page = md5(html.encode('utf-8')).hexdigest()
-        if old_md5 == md5_page:
-            return False, 'update', ''
-        else:
-            return True, 'update', md5_page  # todo 对新加入的资源的处理
-
     # 检查所有资源是否更新
     async def update_pan_task(self):
-        with open('md5.txt', 'r') as f:
-            md5_list = f.readlines()
-        for item in md5_list:
-            uuid, original, md5_sign = item.split('**')
-            self.md5_dict[uuid] = [original, md5_sign]
-            status, update_or_new, new_md5 = await self.check_update(original, md5_sign)
-            if not status:
-                continue
-            else:
+        os.chdir('/home/chenggq/projects/api-show/')
+        for i, uuid, original in enumerate(session.query(Resources.uuid, Resources.original).all()):
+            html = await self.crawl_client.process_html(original)
+            file_name = './html/check_{}.html'.format(i)
+            with open(file_name, 'w') as f:
+                f.write(html)
+            output = subprocess.check_output('git diff', shell=True)
+            output = output.decode(encoding="utf-8")
+            if '百度网盘' in output:
                 await self.get_one_pan(resource_uuid=uuid, resource_url=original, update=True)
-                self.md5_dict[uuid] = [original, new_md5]
-        with open('md5.txt', 'w') as f:
-            for key, value in self.md5_dict.items():
-                f.write('{}:{}:{}\n'.format(key, value[0], value[1]))
+            subprocess.check_output('git add . && git commit', shell=True)
 
     # todo 重试错误信息
     async def _retry_error_page(self):
