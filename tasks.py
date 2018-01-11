@@ -66,7 +66,7 @@ class DianBoTask:
             output = output.decode(encoding="utf-8")
             if '百度网盘' in output:
                 await self.get_one_pan(resource_uuid=uuid, resource_url=original, update=True)
-            subprocess.check_output('git add . && git commit -m "update"', shell=True)
+            subprocess.call('git add . && git commit -m "update"', shell=True)
 
     # todo 重试错误信息
     async def _retry_error_page(self):
