@@ -25,6 +25,8 @@ class DianBoTask:
 
     async def init_page_task(self):
         page_num = await self.crawl_client.process_page_number()
+        with open('./page.txt', 'w') as f:
+            f.write('{}'.format(page_num))
         for i in range(page_num):
             html = await self.crawl_client.process_html('{}/page/{}'.format(config.ROOT_URL_DIANBO_TVSHOW, i + 1))
             fail_task = await self.crawl_client.process_page_info(html)
@@ -57,9 +59,17 @@ class DianBoTask:
     # 检查所有资源是否更新
     async def update_pan_task(self):
         os.chdir('/home/chenggq/projects/api-show/')
+        for _, _, filename in os.walk('/home/chenggq/projects/api-show/html/'):
+            raw_filename_list = filename
+        old_filename_list = ['./html/' + item for item in raw_filename_list]
         for i, uuid, original in session.query(Resources.id, Resources.uuid, Resources.original).all():
             html = await self.crawl_client.process_html(original)
             file_name = './html/check_{}.html'.format(i)
+            if file_name not in old_filename_list:
+                await self.get_one_pan(resource_uuid=uuid, resource_url=original, update=False)
+                with open(file_name, 'w') as f:
+                    f.write(html)
+                continue
             with open(file_name, 'w') as f:
                 f.write(html)
             output = subprocess.check_output('git diff', shell=True)
@@ -67,6 +77,22 @@ class DianBoTask:
             if '百度网盘' in output:
                 await self.get_one_pan(resource_uuid=uuid, resource_url=original, update=True)
             subprocess.call('git add . && git commit -m "update"', shell=True)
+
+    # 检查新增的资源
+    async def update_page_task(self):
+        page_num = await self.crawl_client.process_page_number()
+        with open('./page.txt', 'r') as f:
+            page_old = int(f.read())
+        if page_old <= page_num:
+            return
+        else:
+            with open('./page.txt', 'w') as f:
+                f.write(str(page_num))
+            page_new = [num for num in page_num if num > (int(page_old)-1) ]
+        for i in page_new:
+            html = await self.crawl_client.process_html('{}/page/{}'.format(config.ROOT_URL_DIANBO_TVSHOW, i + 1))
+            fail_task = await self.crawl_client.process_page_info(html)
+            self.fail_page_info.extend(fail_task)
 
     # todo 重试错误信息
     async def _retry_error_page(self):
@@ -113,6 +139,7 @@ def init():
 def update():
     loop = asyncio.get_event_loop()
     task = DianBoTask(DianboClient(root_url=config.ROOT_URL_DIANBO_TVSHOW, loop=loop))
+    loop.run_until_complete(task.update_page_task())
     loop.run_until_complete(task.update_pan_task())
     loop.close()
 
@@ -167,8 +194,4 @@ def update_email(sender, **kw):
 
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    task = DianBoTask(DianboClient(root_url=config.ROOT_URL_DIANBO_TVSHOW, loop=loop))
-    loop.run_until_complete(task.update_pan_task())
-    # os.chdir('/home/chenggq/projects/api-show/')
-    # subprocess.call('git add . && git commit -m "update"', shell=True)
+    pass

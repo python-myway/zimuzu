@@ -6,7 +6,8 @@
 3. 练习Sanic扩展
 
 ### 功能说明(更新中)
-1. 订阅剧集，每周剧集更新，会将更新的内容邮件通知
+1. 订阅剧集后，会将数据库中该剧目前的资源发送到邮箱
+2. 剧集更新时，会通过邮件将更新的内容发送到邮箱
 
 ### 代码结构
 ```
@@ -59,7 +60,7 @@
 1. fork项目，并克隆到本地
 git clone https://github.com/python-myway/zimuzu.git
 
-2. 在根目录下添加local_config.py文件，添加config.py中的个人配置
+2. 在根目录下添加local_config.py文件，添加config.py中的个人配置(目前主要是邮箱配置)
 vim local_config.py
 
 3. 在虚拟环境中安装依赖
@@ -75,20 +76,19 @@ python scripts.py --func init_db
 python scripts.py --func init_data
 
 7. 启动后端代码
-python app.py
+python app.py  # 直接启动
+gunicorn -w 4 app:app --bind 127.0.0.1:8300 --worker-class sanic.worker.GunicornWorker  # 使用gunicorn启动，推荐
 
 8. 在浏览器中打开http://localhost:8300/index.html，查看效果
 
-9. 使用gunicorn启动
-gunicorn -w 4 app:app --bind 127.0.0.1:8300 --worker-class sanic.worker.GunicornWorker
-
-10. 用独立的进程运行定时任务
+9. 用独立的进程运行定时任务
 python scripts.py --func update
 ```
 
 ## TODO(更新中)
 1. 优化邮件内容的格式
 2. 前端使用vue优化下界面
+3. 使用哈希值监控页面变化(目前利用git版本控制)
 
 ## 问题&说明(更新中)
 - 问题1
@@ -100,6 +100,7 @@ client_session: <aiohttp.client.ClientSession object at 0x7fc359a84f28>
 - 问题2
 ```
 RuntimeWarning: coroutine 'DianBoTask.get_one_pan' was never awaited
+原因：以async定义的函数未通过await方式执行，会报上面的错误
 ```
 
 - 问题3
