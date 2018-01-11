@@ -54,19 +54,10 @@ class DianBoTask:
         os.chdir('/home/chenggq/projects/api-show/')
         subprocess.check_output('git add . && git commit -m "update"', shell=True)
 
-        # todo 用MD5的值来计算网页是否发生变化
-        # for uuid, original in session.query(Resources.uuid, Resources.original).all():
-        #     self.md5_dict[uuid] = [original]
-        #     html = await self.crawl_client.process_html(original)
-        #     self.md5_dict[uuid].append(md5(html.encode('utf-8')).hexdigest())
-        # with open('md5.txt', 'w') as f:
-        #     for key, value in self.md5_dict.items():
-        #         f.write('{}**{}**{}\n'.format(key, value[0], value[1]))
-
     # 检查所有资源是否更新
     async def update_pan_task(self):
         os.chdir('/home/chenggq/projects/api-show/')
-        for i, uuid, original in enumerate(session.query(Resources.uuid, Resources.original).all()):
+        for i, uuid, original in session.query(Resources.id, Resources.uuid, Resources.original).all():
             html = await self.crawl_client.process_html(original)
             file_name = './html/check_{}.html'.format(i)
             with open(file_name, 'w') as f:
@@ -75,7 +66,7 @@ class DianBoTask:
             output = output.decode(encoding="utf-8")
             if '百度网盘' in output:
                 await self.get_one_pan(resource_uuid=uuid, resource_url=original, update=True)
-            subprocess.check_output('git add . && git commit', shell=True)
+            subprocess.check_output('git add . && git commit -m "update"', shell=True)
 
     # todo 重试错误信息
     async def _retry_error_page(self):
@@ -176,8 +167,8 @@ def update_email(sender, **kw):
 
 
 if __name__ == '__main__':
-    # loop = asyncio.get_event_loop()
-    # task = DianBoTask(DianboClient(root_url=config.ROOT_URL_DIANBO_TVSHOW, loop=loop))
-    # loop.run_until_complete(task.init_env_var())
-    os.chdir('/home/chenggq/projects/api-show/')
-    subprocess.call('git add . && git commit -m "update"', shell=True)
+    loop = asyncio.get_event_loop()
+    task = DianBoTask(DianboClient(root_url=config.ROOT_URL_DIANBO_TVSHOW, loop=loop))
+    loop.run_until_complete(task.update_pan_task())
+    # os.chdir('/home/chenggq/projects/api-show/')
+    # subprocess.call('git add . && git commit -m "update"', shell=True)
