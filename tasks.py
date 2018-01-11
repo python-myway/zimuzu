@@ -50,9 +50,12 @@ class DianBoTask:
             self.md5_dict[uuid] = [original]
             html = await self.crawl_client.process_html(original)
             self.md5_dict[uuid].append(md5(html.encode('utf-8')).hexdigest())
-        with open('md5.txt', 'w') as f:
-            for key, value in self.md5_dict.items():
-                f.write('{}**{}**{}\n'.format(key, value[0], value[1]))
+            with open('test.html', 'w') as f:
+                f.write(html)
+                break
+        # with open('md5.txt', 'w') as f:
+        #     for key, value in self.md5_dict.items():
+        #         f.write('{}**{}**{}\n'.format(key, value[0], value[1]))
 
     # 检查单个是否更新最新集
     async def check_update(self, original, old_md5):
@@ -179,7 +182,6 @@ def update_email(sender, **kw):
 
 
 if __name__ == '__main__':
-    import requests
-    html = requests.get('http://dbfansub.com/tvshow/10584.html')
-    old_md5 = md5(html).hexdigest()
-    print(old_md5)
+    loop = asyncio.get_event_loop()
+    task = DianBoTask(DianboClient(root_url=config.ROOT_URL_DIANBO_TVSHOW, loop=loop))
+    loop.run_until_complete(task.init_env_var())
