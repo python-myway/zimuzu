@@ -46,13 +46,13 @@ class DianBoTask:
 
     # 初始化变量
     async def init_env_var(self):
-        for i, uuid, original in enumerate(session.query(Resources.uuid, Resources.original).all()):
+        for i, uuid, original in session.query(Resources.id, Resources.uuid, Resources.original).all():
             html = await self.crawl_client.process_html(original)
             file_name = './html/check_{}.html'.format(i)
             with open(file_name, 'w') as f:
                 f.write(html)
         os.chdir('/home/chenggq/projects/api-show/')
-        subprocess.check_output('git add . && git commit', shell=True)
+        subprocess.check_output('git add . && git commit -m "update"', shell=True)
 
         # todo 用MD5的值来计算网页是否发生变化
         # for uuid, original in session.query(Resources.uuid, Resources.original).all():
@@ -176,6 +176,8 @@ def update_email(sender, **kw):
 
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    task = DianBoTask(DianboClient(root_url=config.ROOT_URL_DIANBO_TVSHOW, loop=loop))
-    loop.run_until_complete(task.init_env_var())
+    # loop = asyncio.get_event_loop()
+    # task = DianBoTask(DianboClient(root_url=config.ROOT_URL_DIANBO_TVSHOW, loop=loop))
+    # loop.run_until_complete(task.init_env_var())
+    os.chdir('/home/chenggq/projects/api-show/')
+    subprocess.call('git add . && git commit -m "update"', shell=True)
