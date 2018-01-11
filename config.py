@@ -1,13 +1,12 @@
 import pymysql
-from datetime import time
 
 pymysql.install_as_MySQLdb()
 
 HOST_EMAIL = {
     'nick_name': '共享俱乐部',
     'server': 'smtp.163.com',
-    'username': 'xxx',
-    'password': 'xxx',
+    'username': 'chengganqin@163.com',
+    'password': 'looking**171221',
     'port': 25,
 }
 

@@ -70,7 +70,7 @@ class DianboClient(BaseClient):
             except AttributeError:
                 continue
         if update:
-            pan_list = pan_list[-1]
+            pan_list = [pan_list[-1]]
         for item in pan_list:
             location = Location(episode=item[0],
                                 url=item[1],
@@ -88,7 +88,7 @@ class DianboClient(BaseClient):
             return pan_list
 
     async def __aenter__(self):
-        pass
+        return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         self.session.close()

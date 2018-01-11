@@ -1,3 +1,4 @@
+import os
 import asyncio
 import smtplib
 from hashlib import md5
@@ -21,7 +22,6 @@ class DianBoTask:
         self.fail_page_info = []
         self.fail_pan_info = []
         self.md5_dict = {}
-        self.pan_url_dict = {}
 
     async def init_page_task(self):
         page_num = await self.crawl_client.process_page_number()
@@ -41,43 +41,44 @@ class DianBoTask:
         html = await self.crawl_client.process_html(resource_url)
         fail_task = await self.crawl_client.process_pan_info(html, resource_uuid, update)
         if update:
-            send_update_email.send(self, resource_uuid)
+            send_update_email.send(self, resource_id=resource_uuid)
         self.fail_pan_info.extend(fail_task)
 
     # 初始化变量
     async def init_env_var(self):
         for uuid, original in session.query(Resources.uuid, Resources.original).all():
-            self.pan_url_dict[uuid] = original
+            self.md5_dict[uuid] = [original]
             html = await self.crawl_client.process_html(original)
-            self.md5_dict[uuid] = md5(html.encode('utf-8'))
+            self.md5_dict[uuid].append(md5(html.encode('utf-8')).hexdigest())
+        with open('md5.txt', 'w') as f:
+            for key, value in self.md5_dict.items():
+                f.write('{}**{}**{}\n'.format(key, value[0], value[1]))
 
-    # 检查单个是否更新最新集，或者是新加入的资源(未获取网盘信息)
-    async def check_update(self, resource_uuid):
-        value = self.pan_url_dict[resource_uuid]
-        html = await self.crawl_client.process_html(value)
-        md5_page = md5(html.encode('utf-8'))
-        try:
-            old_md5 = self.md5_dict[resource_uuid]
-            if old_md5 == md5_page:
-                return False, 'update'
-            else:
-                self.md5_dict[resource_uuid] = md5_page
-                return True, 'update'
-        except KeyError:
-            self.md5_dict[resource_uuid] = md5_page
-            return True, 'new'
+    # 检查单个是否更新最新集
+    async def check_update(self, original, old_md5):
+        html = await self.crawl_client.process_html(original)
+        md5_page = md5(html.encode('utf-8')).hexdigest()
+        if old_md5 == md5_page:
+            return False, 'update', ''
+        else:
+            return True, 'update', md5_page  # todo 对新加入的资源的处理
 
     # 检查所有资源是否更新
     async def update_pan_task(self):
-        await self.init_env_var()
-        for uuid, original in self.pan_url_dict.items():
-            status, update_or_new = await self.check_update(uuid)
+        with open('md5.txt', 'r') as f:
+            md5_list = f.readlines()
+        for item in md5_list:
+            uuid, original, md5_sign = item.split('**')
+            self.md5_dict[uuid] = [original, md5_sign]
+            status, update_or_new, new_md5 = await self.check_update(original, md5_sign)
             if not status:
                 continue
-            if update_or_new == 'update':
-                self.get_one_pan(resource_uuid=uuid, resource_url=original, update=True)
-            if update_or_new == 'new':
-                self.get_one_pan(resource_uuid=uuid, resource_url=original, update=False)
+            else:
+                await self.get_one_pan(resource_uuid=uuid, resource_url=original, update=True)
+                self.md5_dict[uuid] = [original, new_md5]
+        with open('md5.txt', 'w') as f:
+            for key, value in self.md5_dict.items():
+                f.write('{}:{}:{}\n'.format(key, value[0], value[1]))
 
     # todo 重试错误信息
     async def _retry_error_page(self):
@@ -117,6 +118,7 @@ def init():
     task = DianBoTask(DianboClient(root_url=config.ROOT_URL_DIANBO_TVSHOW, loop=loop))
     loop.run_until_complete(task.init_page_task())
     loop.run_until_complete(task.init_pan_task())
+    loop.run_until_complete(task.init_env_var())
     loop.close()
 
 
@@ -149,17 +151,17 @@ async def init_email(nick_name, email, resource_ids):
         email_client.send(msg)
     except smtplib.SMTPDataError as e:
         return e.args
-    return
 
 
 # 资源更新时的邮件(通过blinker信号触发)
 @send_update_email.connect
 def update_email(sender, **kw):
     resource_id = kw.pop('resource_id')
-    latest = session.query(Resources.name, Location). \
+    latest = session.query(Resources.name, Location.episode,
+                           Location.url, Location.password). \
         outerjoin(Location, Resources.uuid == Location.resource). \
         filter(Location.resource == resource_id). \
-        order_by(desc(Location.create_time)).limit(1)
+        order_by(desc(Location.create_time)).first()
     recipients = []
     query = session.query(Subscriber).filter(Subscriber.resources.contains(resource_id))
     for item in query:
@@ -172,8 +174,12 @@ def update_email(sender, **kw):
         email_client.send(msg)
     except smtplib.SMTPDataError as e:
         return e.args
-    return
+    except AssertionError:
+        return
 
 
 if __name__ == '__main__':
-    pass
+    import requests
+    html = requests.get('http://dbfansub.com/tvshow/10584.html')
+    old_md5 = md5(html).hexdigest()
+    print(old_md5)
